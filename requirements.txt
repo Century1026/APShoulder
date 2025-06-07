@@ -22,3 +22,4 @@ pandas
 einops
 scikit-image
 monai==0.7.0
+matplotlib

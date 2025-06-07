@@ -89,7 +89,7 @@ def _visualize_segmentation(image_path, seg_array):
     plt.show()
 
 
-def segment(image, label, result, weights, resolution, patch_size, network, gpu_ids, show=False):
+def segment(image, label, result, weights, resolution, patch_size, network, gpu_ids, show=True):
 
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
@@ -257,6 +257,8 @@ def segment(image, label, result, weights, resolution, patch_size, network, gpu_
                 res = files_images.squeeze().data.numpy()
 
             result_array = np.rint(res)
+            if result_array.ndim == 2:
+                result_array = result_array[:, :, np.newaxis]  # Expand to (H, W, 1)
 
             os.remove('./temp_seg.nii')
 
@@ -280,10 +282,11 @@ def segment(image, label, result, weights, resolution, patch_size, network, gpu_
     
     
 def test_func():
+    os.makedirs("./result", exist_ok=True)
     parser = argparse.ArgumentParser()
-    parser.add_argument("--image", type=str, default='../test0.nii', help='source image' )
+    parser.add_argument("--image", type=str, default='./test.DCM', help='source image' )
     parser.add_argument("--label", type=str, default=None, help='source label, if you want to compute dice. None for new case')
-    parser.add_argument("--result", type=str, default='../test_0.nii.gz', help='path to the .nii result to save')
+    parser.add_argument("--result", type=str, default='./result/test_0.nii.gz', help='path to the .nii result to save')
     parser.add_argument("--weights", type=str, default='./best_metric_model.pth', help='network weights to load')
     parser.add_argument("--resolution", default=[0.7, 0.7, 3], help='Resolution used in training phase')
     parser.add_argument("--patch_size", type=int, nargs=3, default=(128, 128, 16), help="Input dimension for the generator, same of training")
