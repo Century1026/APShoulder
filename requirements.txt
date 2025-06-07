@@ -1,0 +1,24 @@
+# PyTorch and torchvision - match CUDA version
+torch==1.5.0+cu101
+torchvision==0.6.0+cu101
+-f https://download.pytorch.org/whl/torch_stable.html
+
+# MONAI from GitHub
+# git+https://github.com/davidiommi/MONAI_0_7_0.git
+
+# Core dependencies
+simpleITK==2.1.0
+torchsummaryX
+nibabel
+Pillow
+tensorboard
+gdown
+pytorch-ignite==0.4.4
+itk
+tqdm
+lmdb
+psutil
+pandas
+einops
+scikit-image
+monai==0.7.0
