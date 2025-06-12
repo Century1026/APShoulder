@@ -11,6 +11,7 @@ from monai.transforms import (EnsureType, Compose, LoadImaged, AddChanneld, Tran
                               ScaleIntensityd, ToTensord, RandSpatialCropd, Rand3DElasticd, RandAffined, RandZoomd,
                               Spacingd, Orientationd, Resized, ThresholdIntensityd, RandShiftIntensityd, BorderPadd, RandGaussianNoised, RandAdjustContrastd,NormalizeIntensityd,RandFlipd)
 import os
+from dicom_to_nifti import Config, convert_dicom_to_nifti
 os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
 
 
@@ -105,11 +106,11 @@ def segment(image, label, result, weights, resolution, patch_size, network, gpu_
 
     else:
         device = torch.device("cpu")
-
+    print("Using device:", device)
     # build the network
-    if network is 'nnunet':
+    if network == 'nnunet':
         net = build_net()  # nn build_net
-    elif network is 'unetr':
+    elif network == 'unetr':
         net = build_UNETR() # UneTR
 
     net = net.to(device)
@@ -195,11 +196,11 @@ def segment(image, label, result, weights, resolution, patch_size, network, gpu_
         print("Saved Result at:", str(result))
     
     
-def test_func():
+def test_func(nifiti_dir, result_dir):
     parser = argparse.ArgumentParser()
-    parser.add_argument("--image", type=str, default='../test0.nii', help='source image' )
+    parser.add_argument("--image", type=str, default=nifiti_dir, help='source image' )
     parser.add_argument("--label", type=str, default=None, help='source label, if you want to compute dice. None for new case')
-    parser.add_argument("--result", type=str, default='../test_0.nii.gz', help='path to the .nii result to save')
+    parser.add_argument("--result", type=str, default=result_dir, help='path to the .nii result to save')
     parser.add_argument("--weights", type=str, default='./best_metric_model.pth', help='network weights to load')
     parser.add_argument("--resolution", default=[0.7, 0.7, 3], help='Resolution used in training phase')
     parser.add_argument("--patch_size", type=int, nargs=3, default=(128, 128, 16), help="Input dimension for the generator, same of training")
@@ -211,19 +212,8 @@ def test_func():
 
 
 if __name__ == "__main__":
-    test_func();
-
-   
-
-
-
-
-
-
-
-
-
-
-
-
-
+    convert_dicom_to_nifti()
+    for dir_id in Config.DIR_IDS:
+        nifiti_dir = os.path.join(Config.NIFTI_DIR, f"raw_{dir_id}.nii")
+        result_dir = os.path.join(Config.RESULT, f"prediction_{dir_id}.nii.gz")
+        test_func(nifiti_dir, result_dir);
