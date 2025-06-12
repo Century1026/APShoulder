@@ -1,102 +1,24 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python2
 # -*- coding: utf-8 -*-
 
 from utils import *
 import argparse
-import matplotlib.pyplot as plt
 from networks import build_net, build_UNETR
 from monai.inferers import sliding_window_inference
 from monai.metrics import DiceMetric
 from monai.data import NiftiSaver, create_test_image_3d, list_data_collate, decollate_batch
-from monai.transforms import (
-    EnsureType,
-    Compose,
-    LoadImaged,
-    AddChanneld,
-    Transpose,
-    Activations,
-    AsDiscrete,
-    RandGaussianSmoothd,
-    CropForegroundd,
-    SpatialPadd,
-    ScaleIntensityd,
-    ToTensord,
-    RandSpatialCropd,
-    Rand3DElasticd,
-    RandAffined,
-    RandZoomd,
-    Spacingd,
-    Orientationd,
-    Resized,
-    ThresholdIntensityd,
-    RandShiftIntensityd,
-    BorderPadd,
-    RandGaussianNoised,
-    RandAdjustContrastd,
-    NormalizeIntensityd,
-    RandFlipd,
-)
+from monai.transforms import (EnsureType, Compose, LoadImaged, AddChanneld, Transpose,Activations,AsDiscrete, RandGaussianSmoothd, CropForegroundd, SpatialPadd,
+                              ScaleIntensityd, ToTensord, RandSpatialCropd, Rand3DElasticd, RandAffined, RandZoomd,
+                              Spacingd, Orientationd, Resized, ThresholdIntensityd, RandShiftIntensityd, BorderPadd, RandGaussianNoised, RandAdjustContrastd,NormalizeIntensityd,RandFlipd)
 import os
-import tempfile
-import SimpleITK as sitk
-
-os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
 
 
-def _convert_if_dicom(path, tmp_files):
-    """Convert DICOM files or folders to a temporary NIfTI image."""
-    if os.path.isdir(path):
-        reader = sitk.ImageSeriesReader()
-        dicom_names = reader.GetGDCMSeriesFileNames(path)
-        if dicom_names:
-            reader.SetFileNames(dicom_names)
-            image = reader.Execute()
-        else:
-            return path
-    else:
-        ext = os.path.splitext(path)[1].lower()
-        if ext in (".dcm", ".dicom"):
-            image = sitk.ReadImage(path)
-        else:
-            return path
-
-    tmp = tempfile.NamedTemporaryFile(suffix=".nii.gz", delete=False)
-    sitk.WriteImage(image, tmp.name)
-    tmp_files.append(tmp.name)
-    return tmp.name
-
-
-def _visualize_segmentation(image_path, seg_array):
-    """Display the middle slice of the image with the segmentation overlay."""
-    img = sitk.ReadImage(image_path)
-    img_np = sitk.GetArrayFromImage(img)
-    # convert to (x, y, z)
-    img_np = np.transpose(img_np, (2, 1, 0))
-    if img_np.shape != seg_array.shape:
-        return
-
-    mid = img_np.shape[2] // 2
-    fig, axes = plt.subplots(1, 2, figsize=(10, 5))
-    axes[0].imshow(img_np[:, :, mid], cmap="gray")
-    axes[0].imshow(seg_array[:, :, mid], cmap="Reds", alpha=0.5)
-    axes[0].set_title("Overlay")
-    axes[0].axis("off")
-
-    axes[1].imshow(seg_array[:, :, mid], cmap="gray")
-    axes[1].set_title("Segmentation")
-    axes[1].axis("off")
-    plt.tight_layout()
-    plt.show()
-
-
-def segment(image, label, result, weights, resolution, patch_size, network, gpu_ids, show=True):
+def segment(image, label, result, weights, resolution, patch_size, network, gpu_ids):
 
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
-    tmp_files = []
-    image = _convert_if_dicom(image, tmp_files)
     if label is not None:
-        label = _convert_if_dicom(label, tmp_files)
         uniform_img_dimensions_internal(image, label, True)
         files = [{"image": image, "label": label}]
     else:
@@ -257,8 +179,6 @@ def segment(image, label, result, weights, resolution, patch_size, network, gpu_
                 res = files_images.squeeze().data.numpy()
 
             result_array = np.rint(res)
-            if result_array.ndim == 2:
-                result_array = result_array[:, :, np.newaxis]  # Expand to (H, W, 1)
 
             os.remove('./temp_seg.nii')
 
@@ -273,29 +193,21 @@ def segment(image, label, result, weights, resolution, patch_size, network, gpu_
         writer.SetFileName(result)
         writer.Execute(result_seg)
         print("Saved Result at:", str(result))
-        if show:
-            _visualize_segmentation(image, empty_array)
-
-    for f in tmp_files:
-        if os.path.exists(f):
-            os.remove(f)
     
     
 def test_func():
-    os.makedirs("./result", exist_ok=True)
     parser = argparse.ArgumentParser()
-    parser.add_argument("--image", type=str, default='./test.DCM', help='source image' )
+    parser.add_argument("--image", type=str, default='../test0.nii', help='source image' )
     parser.add_argument("--label", type=str, default=None, help='source label, if you want to compute dice. None for new case')
-    parser.add_argument("--result", type=str, default='./result/test_0.nii.gz', help='path to the .nii result to save')
+    parser.add_argument("--result", type=str, default='../test_0.nii.gz', help='path to the .nii result to save')
     parser.add_argument("--weights", type=str, default='./best_metric_model.pth', help='network weights to load')
     parser.add_argument("--resolution", default=[0.7, 0.7, 3], help='Resolution used in training phase')
     parser.add_argument("--patch_size", type=int, nargs=3, default=(128, 128, 16), help="Input dimension for the generator, same of training")
     parser.add_argument('--network', default='nnunet', help='nnunet, unetr')
     parser.add_argument('--gpu_ids', type=str, default='0', help='gpu ids: e.g. 0  0,1,2, 0,2. use -1 for CPU')
-    parser.add_argument('--show', action='store_true', help='visualize the segmentation result')
     args = parser.parse_args()
 
-    segment(args.image, args.label, args.result, args.weights, args.resolution, args.patch_size, args.network, args.gpu_ids, args.show)
+    segment(args.image, args.label, args.result, args.weights, args.resolution, args.patch_size, args.network, args.gpu_ids)
 
 
 if __name__ == "__main__":
