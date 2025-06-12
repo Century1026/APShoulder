@@ -8,8 +8,11 @@ conda activate Shoulder_env
 ```
 pip install -r requirements.txt
 ```
+
+# Set up image folder
+Place your image folders in "./images/dicom", replace DIR_IDS with the numbering of your folders.
+
 # Run the prediction script
 ```
-python predict_single_image.py
+python predict_multiple_image.py
 ```
-# 生成的 NIfTI 格式分割文件位于 result 文件夹内
